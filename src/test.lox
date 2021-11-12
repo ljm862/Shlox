@@ -1,0 +1,11 @@
+2 + 4 / 3 >= 6 * 2 == true;
+
+var x = "hello";
+
+//  This is a comment
+
+var y = 6 + 3;
+
+/* This is 
+a multi level
+comment */
