@@ -1,5 +1,6 @@
 ﻿using LoxInterpreter.Lexing;
 using LoxInterpreter.Parsing;
+using LoxInterpreter.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,9 @@ namespace LoxInterpreter
 {
 	class Lox
 	{
+		private static readonly Interpreter interpreter = new();
 		public static bool hadError = false;
+		public static bool hadRuntimeError = false;
 		static void Main(string[] args)
 		{
 
@@ -34,6 +37,7 @@ namespace LoxInterpreter
 			Run(System.Text.Encoding.Default.GetString(bytes));
 
 			if (hadError) Environment.Exit(65);
+			if (hadRuntimeError) Environment.Exit(70);
 		}
 
 		private static void RunPrompt()
@@ -60,10 +64,7 @@ namespace LoxInterpreter
 
 			if (hadError) return;
 
-			foreach (var token in tokens)
-			{
-				Console.WriteLine(token);
-			}
+			interpreter.Interpret(expression);
 		}
 
 		public static void Error(int line, string message)
@@ -83,6 +84,12 @@ namespace LoxInterpreter
 			{
 				Report(token.Line, $" at '{token.Lexeme}'", message);
 			}
+		}
+
+		public static void RuntimeError(RuntimeError error)
+		{
+			Console.Error.WriteLine($"{error.Message}\n[line {error.Token.Line}]");
+			hadRuntimeError = true;
 		}
 
 		private static void Report(int line, string where, string message)
