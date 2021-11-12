@@ -19,23 +19,105 @@ namespace LoxInterpreter.Parsing
 			this.tokens = tokens;
 		}
 
-		public Expr Parse()
+		public List<Stmt> Parse()
 		{
-			try
+			var statements = new List<Stmt>();
+			while (!this.IsAtEnd())
 			{
-				return this.Expression();
+				statements.Add(this.Declaration());
 			}
-			catch (ParseError)
-			{
-				return null;
-			}
+			return statements;
 		}
 
 		#region Recursive Descent Steps
 
 		private Expr Expression()
 		{
-			return this.Equality();
+			return this.Assignment();
+		}
+
+		private Expr Assignment()
+		{
+			var expr = this.Equality();
+
+			if (this.Match(TokenType.EQUAL))
+			{
+				var equals = this.Previous();
+				var value = this.Assignment();
+
+				if (expr is Expr.Variable variable)
+				{
+					var name = variable.name;
+					return new Expr.Assign(name, value);
+				}
+
+				this.Error(equals, "Invalid assignment target.");
+			}
+
+			return expr;
+		}
+
+		private Stmt Declaration()
+		{
+			try
+			{
+				if (this.Match(TokenType.VAR)) return this.VarDeclaration();
+				return this.Statement();
+			}
+			catch (ParseError)
+			{
+				this.Synchronise();
+				return null;
+			}
+		}
+
+		private Stmt Statement()
+		{
+			if (this.Match(TokenType.PRINT)) return this.PrintStatement();
+			if (this.Match(TokenType.LEFT_BRACE)) return new Stmt.Block(this.Block());
+
+			return this.ExpressionStatement();
+		}
+
+		private Stmt PrintStatement()
+		{
+			var value = this.Expression();
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after value.");
+			return new Stmt.Print(value);
+		}
+
+		private Stmt VarDeclaration()
+		{
+			var name = this.Consume(TokenType.IDENTIFIER, "Expect variable name.");
+
+			Expr initializer = null;
+			if (this.Match(TokenType.EQUAL))
+			{
+				initializer = this.Expression();
+			}
+
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
+			return new Stmt.Var(name, initializer);
+		}
+
+		private Stmt ExpressionStatement()
+		{
+			var expr = this.Expression();
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+			return new Stmt.Expression(expr);
+		}
+
+		private List<Stmt> Block()
+		{
+			var statements = new List<Stmt>();
+
+			while (!this.Check(TokenType.RIGHT_BRACE) && !this.IsAtEnd())
+			{
+				statements.Add(this.Declaration());
+			}
+
+			this.Consume(TokenType.RIGHT_BRACE, "Expect '}' after block.");
+			return statements;
 		}
 
 		private Expr Equality()
@@ -115,6 +197,11 @@ namespace LoxInterpreter.Parsing
 			if (this.Match(TokenType.NUMBER, TokenType.STRING))
 			{
 				return new Expr.Literal(this.Previous().Literal);
+			}
+
+			if (this.Match(TokenType.IDENTIFIER))
+			{
+				return new Expr.Variable(this.Previous());
 			}
 
 			if (this.Match(TokenType.LEFT_PAREN))

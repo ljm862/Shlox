@@ -1,8 +1,15 @@
 2 + 4 / 3 >= 6 * 2 == true;
 
-var x = "hello";
-
+print "hello";
+print 3 + 5;
 //  This is a comment
+
+var a = "before";
+print a;
+var a = "after";
+print a;
+a = "again after";
+print a;
 
 var y = 6 + 3;
 

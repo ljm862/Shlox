@@ -8,10 +8,28 @@ namespace LoxInterpreter
 	{
 		public interface IVisitor<T>
 		{
+			T VisitAssignExpr(Assign expr);
 			T VisitBinaryExpr(Binary expr);
 			T VisitGroupingExpr(Grouping expr);
 			T VisitLiteralExpr(Literal expr);
 			T VisitUnaryExpr(Unary expr);
+			T VisitVariableExpr(Variable expr);
+		}
+		public class Assign : Expr
+		{
+			public Assign(Token name, Expr value)
+			{
+				this.name = name;
+				this.value = value;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitAssignExpr(this);
+			}
+
+			public readonly Token name;
+			public readonly Expr value;
 		}
 		public class Binary : Expr
 		{
@@ -74,6 +92,20 @@ namespace LoxInterpreter
 
 			public readonly Token oper;
 			public readonly Expr right;
+		}
+		public class Variable : Expr
+		{
+			public Variable(Token name)
+			{
+				this.name = name;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitVariableExpr(this);
+			}
+
+			public readonly Token name;
 		}
 
 		public abstract T Accept<T>(IVisitor<T> visitor);

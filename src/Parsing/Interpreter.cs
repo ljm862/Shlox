@@ -8,15 +8,17 @@ using System.Threading.Tasks;
 
 namespace LoxInterpreter.Parsing
 {
-	public class Interpreter : Expr.IVisitor<object>
+	public class Interpreter : Expr.IVisitor<object>, Stmt.IVisitor<object>
 	{
-
-		public void Interpret(Expr expression)
+		private Environment environment = new();
+		public void Interpret(List<Stmt> statements)
 		{
 			try
 			{
-				var value = this.Evaluate(expression);
-				Console.WriteLine(this.Stringify(value));
+				foreach (var statement in statements)
+				{
+					this.Execute(statement);
+				}
 			}
 			catch (RuntimeError e)
 			{
@@ -24,7 +26,36 @@ namespace LoxInterpreter.Parsing
 			}
 		}
 
-		#region Interface
+		private void Execute(Stmt stmt)
+		{
+			stmt.Accept(this);
+		}
+
+		private void ExecuteBlock(List<Stmt> statements, Environment environment)
+		{
+			var previous = this.environment;
+			try
+			{
+				this.environment = environment;
+
+				foreach (var statement in statements)
+				{
+					this.Execute(statement);
+				}
+			}
+			finally
+			{
+				this.environment = previous;
+			}
+		}
+
+		#region Interfaces
+		public object VisitBlockStmt(Stmt.Block stmt)
+		{
+			this.ExecuteBlock(stmt.statements, new Environment(environment));
+			return null;
+		}
+
 		public object VisitBinaryExpr(Expr.Binary expr)
 		{
 			var left = this.Evaluate(expr.left);
@@ -100,6 +131,42 @@ namespace LoxInterpreter.Parsing
 			}
 			return null;
 		}
+
+		public object VisitVariableExpr(Expr.Variable expr)
+		{
+			return environment.Get(expr.name);
+		}
+
+		public object VisitExpressionStmt(Stmt.Expression stmt)
+		{
+			_ = this.Evaluate(stmt.expression);
+			return null;
+		}
+
+		public object VisitPrintStmt(Stmt.Print stmt)
+		{
+			var value = this.Evaluate(stmt.expression);
+			Console.WriteLine(this.Stringify(value));
+			return null;
+		}
+
+		public object VisitVarStmt(Stmt.Var stmt)
+		{
+			object value = null;
+			if (stmt.initializer != null)
+			{
+				value = this.Evaluate(stmt.initializer);
+			}
+			this.environment.Define(stmt.name.Lexeme, value);
+			return null;
+		}
+
+		public object VisitAssignExpr(Expr.Assign expr)
+		{
+			var value = this.Evaluate(expr.value);
+			this.environment.Assign(expr.name, value);
+			return value;
+		}
 		#endregion
 
 		/// <summary>
@@ -151,5 +218,6 @@ namespace LoxInterpreter.Parsing
 			if (left is double && right is double) return;
 			throw new RuntimeError(oper, "Operands must be numbers.");
 		}
+
 	}
 }

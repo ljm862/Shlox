@@ -63,11 +63,19 @@ def main(argv):
         print("Usage: GenerateAst.py <output_directory>")
         sys.exit(64)
     output_directory = argv[1]
-    types = ["Binary : Expr left, Token oper, Expr right",
+    expr_types = ["Assign : Token name, Expr value",
+             "Binary : Expr left, Token oper, Expr right",
              "Grouping : Expr expression",
              "Literal : Object value",
-             "Unary : Token oper, Expr right"]
-    defineAst(output_directory, "Expr", types)
+             "Unary : Token oper, Expr right",
+             "Variable : Token name"]
+    defineAst(output_directory, "Expr", expr_types)
+
+    stmt_types = ["Block : List<Stmt> statements",
+                "Expression : Expr expression",
+                "Print : Expr expression",
+                "Var : Token name, Expr initializer"]
+    defineAst(output_directory, "Stmt", stmt_types)
 
 if __name__ == "__main__":
     main(sys.argv)
