@@ -89,6 +89,12 @@ namespace LoxInterpreter.Lexing
 				case '*':
 					this.AddToken(TokenType.ASTERISK);
 					break;
+				case '?':
+					this.AddToken(TokenType.TERNARY);
+					break;
+				case ':':
+					this.AddToken(TokenType.COLON);
+					break;
 
 				case '!':
 					this.AddToken(this.Match('=') ? TokenType.BANG_EQUAL : TokenType.BANG);

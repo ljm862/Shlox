@@ -67,14 +67,17 @@ def main(argv):
              "Binary : Expr left, Token oper, Expr right",
              "Grouping : Expr expression",
              "Literal : Object value",
+             "Logical : Expr left, Token oper, Expr right",
              "Unary : Token oper, Expr right",
              "Variable : Token name"]
     defineAst(output_directory, "Expr", expr_types)
 
     stmt_types = ["Block : List<Stmt> statements",
                 "Expression : Expr expression",
+                "If : Expr condition, Stmt thenBranch, Stmt elseBranch",
                 "Print : Expr expression",
-                "Var : Token name, Expr initializer"]
+                "Var : Token name, Expr initializer",
+                "While : Expr condition, Stmt body"]
     defineAst(output_directory, "Stmt", stmt_types)
 
 if __name__ == "__main__":

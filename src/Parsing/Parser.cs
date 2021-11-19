@@ -38,7 +38,7 @@ namespace LoxInterpreter.Parsing
 
 		private Expr Assignment()
 		{
-			var expr = this.Equality();
+			var expr = this.Or();
 
 			if (this.Match(TokenType.EQUAL))
 			{
@@ -54,6 +54,32 @@ namespace LoxInterpreter.Parsing
 				this.Error(equals, "Invalid assignment target.");
 			}
 
+			return expr;
+		}
+
+		private Expr Or()
+		{
+			var expr = this.And();
+
+			while (this.Match(TokenType.OR))
+			{
+				var oper = this.Previous();
+				var right = this.And();
+				expr = new Expr.Logical(expr, oper, right);
+			}
+			return expr;
+		}
+
+		private Expr And()
+		{
+			var expr = this.Equality();
+
+			while (this.Match(TokenType.AND))
+			{
+				var oper = this.Previous();
+				var right = this.Equality();
+				expr = new Expr.Logical(expr, oper, right);
+			}
 			return expr;
 		}
 
@@ -73,10 +99,78 @@ namespace LoxInterpreter.Parsing
 
 		private Stmt Statement()
 		{
+			if (this.Match(TokenType.FOR)) return this.ForStatement();
+			if (this.Match(TokenType.IF)) return this.IfStatement();
 			if (this.Match(TokenType.PRINT)) return this.PrintStatement();
+			if (this.Match(TokenType.WHILE)) return this.WhileStatement();
 			if (this.Match(TokenType.LEFT_BRACE)) return new Stmt.Block(this.Block());
 
 			return this.ExpressionStatement();
+		}
+
+		private Stmt ForStatement()
+		{
+			this.Consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.");
+			Stmt initializer;
+			if (this.Match(TokenType.SEMICOLON))
+			{
+				initializer = null;
+			}
+			else if (this.Match(TokenType.VAR))
+			{
+				initializer = this.VarDeclaration();
+			}
+			else
+			{
+				initializer = this.ExpressionStatement();
+			}
+
+			Expr condition = null;
+			if (!this.Check(TokenType.SEMICOLON))
+			{
+				condition = this.Expression();
+			}
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after loop condition.");
+
+			Expr increment = null;
+			if (!this.Check(TokenType.RIGHT_PAREN))
+			{
+				increment = this.Expression();
+			}
+			this.Consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.");
+
+			var body = this.Statement();
+
+			if (increment != null)
+			{
+				body = new Stmt.Block(new List<Stmt>() { body, new Stmt.Expression(increment) });
+			}
+
+			if (condition == null) condition = new Expr.Literal(true);
+			body = new Stmt.While(condition, body);
+
+			if (initializer != null)
+			{
+				body = new Stmt.Block(new List<Stmt>() { initializer, body });
+			}
+
+			return body;
+		}
+
+		private Stmt IfStatement()
+		{
+			this.Consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.");
+			var condition = this.Expression();
+			this.Consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.");
+
+			var thenBranch = this.Statement();
+			Stmt elseBranch = null;
+			if (this.Match(TokenType.ELSE))
+			{
+				elseBranch = this.Statement();
+			}
+
+			return new Stmt.If(condition, thenBranch, elseBranch);
 		}
 
 		private Stmt PrintStatement()
@@ -100,11 +194,34 @@ namespace LoxInterpreter.Parsing
 			return new Stmt.Var(name, initializer);
 		}
 
+		private Stmt WhileStatement()
+		{
+			this.Consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.");
+			var condition = this.Expression();
+			this.Consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.");
+			var body = this.Statement();
+
+			return new Stmt.While(condition, body);
+		}
+
 		private Stmt ExpressionStatement()
 		{
 			var expr = this.Expression();
+			if (this.Match(TokenType.TERNARY))
+			{
+				return this.TernaryStatement(expr);
+			}
 			this.Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
 			return new Stmt.Expression(expr);
+		}
+
+		private Stmt TernaryStatement(Expr conditional)
+		{
+			var thenBranch = this.Statement();
+			this.Consume(TokenType.COLON, "Expect ':' after then statement.");
+			var elseBranch = this.Statement();
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+			return new Stmt.If(conditional, thenBranch, elseBranch);
 		}
 
 		private List<Stmt> Block()

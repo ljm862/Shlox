@@ -116,6 +116,22 @@ namespace LoxInterpreter.Parsing
 			return expr.value;
 		}
 
+		public object VisitLogicalExpr(Expr.Logical expr)
+		{
+			var left = this.Evaluate(expr.left);
+
+			if (expr.oper.Type == TokenType.OR)
+			{
+				if (this.IsTruthy(left)) return left;
+			}
+			else
+			{
+				if (!this.IsTruthy(left)) return left;
+			}
+
+			return this.Evaluate(expr.right);
+		}
+
 		public object VisitUnaryExpr(Expr.Unary expr)
 		{
 			//Evaluate the expression value first
@@ -143,6 +159,19 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitIfStmt(Stmt.If stmt)
+		{
+			if (this.IsTruthy(this.Evaluate(stmt.condition)))
+			{
+				this.Execute(stmt.thenBranch);
+			}
+			else if (stmt.elseBranch != null)
+			{
+				this.Execute(stmt.elseBranch);
+			}
+			return null;
+		}
+
 		public object VisitPrintStmt(Stmt.Print stmt)
 		{
 			var value = this.Evaluate(stmt.expression);
@@ -158,6 +187,15 @@ namespace LoxInterpreter.Parsing
 				value = this.Evaluate(stmt.initializer);
 			}
 			this.environment.Define(stmt.name.Lexeme, value);
+			return null;
+		}
+
+		public object VisitWhileStmt(Stmt.While stmt)
+		{
+			while (this.IsTruthy(this.Evaluate(stmt.condition)))
+			{
+				this.Execute(stmt.body);
+			}
 			return null;
 		}
 
