@@ -87,6 +87,7 @@ namespace LoxInterpreter.Parsing
 		{
 			try
 			{
+				if (this.Match(TokenType.FUN)) return this.Function("function");
 				if (this.Match(TokenType.VAR)) return this.VarDeclaration();
 				return this.Statement();
 			}
@@ -102,6 +103,7 @@ namespace LoxInterpreter.Parsing
 			if (this.Match(TokenType.FOR)) return this.ForStatement();
 			if (this.Match(TokenType.IF)) return this.IfStatement();
 			if (this.Match(TokenType.PRINT)) return this.PrintStatement();
+			if (this.Match(TokenType.RETURN)) return this.ReturnStatement();
 			if (this.Match(TokenType.WHILE)) return this.WhileStatement();
 			if (this.Match(TokenType.LEFT_BRACE)) return new Stmt.Block(this.Block());
 
@@ -180,6 +182,18 @@ namespace LoxInterpreter.Parsing
 			return new Stmt.Print(value);
 		}
 
+		private Stmt ReturnStatement()
+		{
+			var keyword = this.Previous();
+			Expr value = null;
+			if (!this.Check(TokenType.SEMICOLON))
+			{
+				value = this.Expression();
+			}
+			this.Consume(TokenType.SEMICOLON, "Expect ';' after return value.");
+			return new Stmt.Return(keyword, value);
+		}
+
 		private Stmt VarDeclaration()
 		{
 			var name = this.Consume(TokenType.IDENTIFIER, "Expect variable name.");
@@ -213,6 +227,35 @@ namespace LoxInterpreter.Parsing
 			}
 			this.Consume(TokenType.SEMICOLON, "Expect ';' after expression.");
 			return new Stmt.Expression(expr);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="kind">Typically will be function or method, so we know what to write as an error</param>
+		/// <returns></returns>
+		private Stmt.Function Function(string kind)
+		{
+			var name = this.Consume(TokenType.IDENTIFIER, $"Expect {kind} name.");
+			this.Consume(TokenType.LEFT_PAREN, $"Expect '(' after {kind} name.");
+			var parameters = new List<Token>();
+
+			if (!this.Check(TokenType.RIGHT_PAREN))
+			{
+				do
+				{
+					if (parameters.Count >= 255)
+					{
+						this.Error(this.Peek(), "Can't have more than 255 parameters.");
+					}
+					parameters.Add(this.Consume(TokenType.IDENTIFIER, "Expect parameter name."));
+				} while (this.Match(TokenType.COMMA));
+			}
+			this.Consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+
+			this.Consume(TokenType.LEFT_BRACE, $"Expect '{{' before {kind} body.");
+			var body = this.Block();
+			return new Stmt.Function(name, parameters, body);
 		}
 
 		private Stmt TernaryStatement(Expr conditional)
@@ -302,7 +345,45 @@ namespace LoxInterpreter.Parsing
 				return new Expr.Unary(oper, right);
 			}
 
-			return this.Primary();
+			return this.Call();
+		}
+
+		private Expr FinishCall(Expr callee)
+		{
+			var args = new List<Expr>();
+			if (!this.Check(TokenType.RIGHT_PAREN))
+			{
+				do
+				{
+					if (args.Count >= 255)
+					{
+						this.Error(Peek(), "Can't have more than 255 arguments.");
+					}
+					args.Add(this.Expression());
+				} while (this.Match(TokenType.COMMA));
+			}
+
+			var paren = this.Consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+
+			return new Expr.Call(callee, paren, args);
+		}
+
+		private Expr Call()
+		{
+			var expr = this.Primary();
+
+			while (true)
+			{
+				if (this.Match(TokenType.LEFT_PAREN))
+				{
+					expr = this.FinishCall(expr);
+				}
+				else
+				{
+					break;
+				}
+			}
+			return expr;
 		}
 
 		private Expr Primary()

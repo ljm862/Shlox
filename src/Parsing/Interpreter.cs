@@ -1,4 +1,5 @@
 ﻿using LoxInterpreter.Exceptions;
+using LoxInterpreter.Functions;
 using LoxInterpreter.Lexing;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,15 @@ namespace LoxInterpreter.Parsing
 {
 	public class Interpreter : Expr.IVisitor<object>, Stmt.IVisitor<object>
 	{
-		private Environment environment = new();
+		public readonly Environment Globals = new();
+		private Environment environment;
+
+		public Interpreter()
+		{
+			this.environment = this.Globals;
+			this.Globals.Define("clock", new NativeFunctions.ClockFunction());
+		}
+
 		public void Interpret(List<Stmt> statements)
 		{
 			try
@@ -31,7 +40,7 @@ namespace LoxInterpreter.Parsing
 			stmt.Accept(this);
 		}
 
-		private void ExecuteBlock(List<Stmt> statements, Environment environment)
+		public void ExecuteBlock(List<Stmt> statements, Environment environment)
 		{
 			var previous = this.environment;
 			try
@@ -106,6 +115,29 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitCallExpr(Expr.Call expr)
+		{
+			var callee = this.Evaluate(expr.callee);
+
+			var args = new List<object>();
+			foreach (var argument in expr.arguments)
+			{
+				args.Add(this.Evaluate(argument));
+			}
+
+			if (!(callee is ILoxCallable))
+			{
+				throw new RuntimeError(expr.paren, "Can only call functions and classes.");
+			}
+
+			var function = (ILoxCallable)callee;
+			if (args.Count != function.Arity())
+			{
+				throw new RuntimeError(expr.paren, $"Expected {function.Arity()} arguments but got {args.Count}.");
+			}
+			return function.Call(this, args);
+		}
+
 		public object VisitGroupingExpr(Expr.Grouping expr)
 		{
 			return this.Evaluate(expr.expression);
@@ -159,6 +191,13 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitFunctionStmt(Stmt.Function stmt)
+		{
+			var function = new LoxFunction(stmt, this.environment);
+			this.environment.Define(stmt.name.Lexeme, function);
+			return null;
+		}
+
 		public object VisitIfStmt(Stmt.If stmt)
 		{
 			if (this.IsTruthy(this.Evaluate(stmt.condition)))
@@ -177,6 +216,13 @@ namespace LoxInterpreter.Parsing
 			var value = this.Evaluate(stmt.expression);
 			Console.WriteLine(this.Stringify(value));
 			return null;
+		}
+
+		public object VisitReturnStmt(Stmt.Return stmt)
+		{
+
+			object value = stmt.value == null ? null : this.Evaluate(stmt.value);
+			throw new Return(value);
 		}
 
 		public object VisitVarStmt(Stmt.Var stmt)

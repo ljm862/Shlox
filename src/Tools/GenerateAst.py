@@ -65,6 +65,7 @@ def main(argv):
     output_directory = argv[1]
     expr_types = ["Assign : Token name, Expr value",
              "Binary : Expr left, Token oper, Expr right",
+             "Call : Expr callee, Token paren, List<Expr> arguments",
              "Grouping : Expr expression",
              "Literal : Object value",
              "Logical : Expr left, Token oper, Expr right",
@@ -74,8 +75,10 @@ def main(argv):
 
     stmt_types = ["Block : List<Stmt> statements",
                 "Expression : Expr expression",
+                "Function : Token name, List<Token> parameters, List<Stmt> body",
                 "If : Expr condition, Stmt thenBranch, Stmt elseBranch",
                 "Print : Expr expression",
+                "Return : Token keyword, Expr value",
                 "Var : Token name, Expr initializer",
                 "While : Expr condition, Stmt body"]
     defineAst(output_directory, "Stmt", stmt_types)
