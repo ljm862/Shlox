@@ -13,6 +13,7 @@ namespace LoxInterpreter.Parsing
 	{
 		public readonly Environment Globals = new();
 		private Environment environment;
+		private readonly Dictionary<Expr, int> locals = new();
 
 		public Interpreter()
 		{
@@ -38,6 +39,11 @@ namespace LoxInterpreter.Parsing
 		private void Execute(Stmt stmt)
 		{
 			stmt.Accept(this);
+		}
+
+		public void Resolve(Expr expr, int depth)
+		{
+			this.locals.Add(expr, depth);
 		}
 
 		public void ExecuteBlock(List<Stmt> statements, Environment environment)
@@ -182,7 +188,14 @@ namespace LoxInterpreter.Parsing
 
 		public object VisitVariableExpr(Expr.Variable expr)
 		{
-			return environment.Get(expr.name);
+			return this.LookUpVariable(expr.name, expr);
+		}
+
+		private object LookUpVariable(Token name, Expr expr)
+		{
+			return this.locals.ContainsKey(expr) ?
+				this.environment.GetAt(this.locals[expr], name.Lexeme) :
+				this.Globals.Get(name);
 		}
 
 		public object VisitExpressionStmt(Stmt.Expression stmt)
@@ -248,7 +261,16 @@ namespace LoxInterpreter.Parsing
 		public object VisitAssignExpr(Expr.Assign expr)
 		{
 			var value = this.Evaluate(expr.value);
-			this.environment.Assign(expr.name, value);
+
+			if (this.locals.ContainsKey(expr))
+			{
+				this.environment.AssignAt(this.locals[expr], expr.name, value);
+			}
+			else
+			{
+				this.Globals.Assign(expr.name, value);
+			}
+
 			return value;
 		}
 		#endregion

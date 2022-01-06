@@ -35,6 +35,11 @@ namespace LoxInterpreter
 			throw new RuntimeError(name, $"Undefined variable '{name.Lexeme}'.");
 		}
 
+		public object GetAt(int distance, string name)
+		{
+			return this.Ancestor(distance).values.Get(name);
+		}
+
 		public void Assign(Token name, object value)
 		{
 			if (this.values.ContainsKey(name.Lexeme))
@@ -52,12 +57,25 @@ namespace LoxInterpreter
 			throw new RuntimeError(name, $"Undefined variable '{name.Lexeme}'.");
 		}
 
+		public void AssignAt(int distance, Token name, object value)
+		{
+			this.Ancestor(distance).values.Add(name.Lexeme, value);
+		}
+
 		public void Define(string name, object value)
 		{
 			// This enables overwriting of the var's value.
 			this.values[name] = value;
 		}
 
-
+		public Environment Ancestor(int distance)
+		{
+			var environment = this;
+			for (int i = 0; i < distance; i++)
+			{
+				environment = environment.Enclosing;
+			}
+			return environment;
+		}
 	}
 }
