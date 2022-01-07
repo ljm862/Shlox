@@ -106,6 +106,14 @@ namespace LoxInterpreter.Parsing
 		private Stmt ClassDeclaration()
 		{
 			var name = this.Consume(TokenType.IDENTIFIER, "Expect class name.");
+
+			Expr.Variable superclass = null;
+			if (this.Match(TokenType.LESS))
+			{
+				this.Consume(TokenType.IDENTIFIER, "Expect superclass name.");
+				superclass = new Expr.Variable(this.Previous());
+			}
+
 			this.Consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
 
 			var methods = new List<Stmt.Function>();
@@ -115,7 +123,7 @@ namespace LoxInterpreter.Parsing
 			}
 
 			this.Consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
-			return new Stmt.Class(name, methods);
+			return new Stmt.Class(name, superclass, methods);
 		}
 
 		private Stmt Statement()
@@ -421,6 +429,16 @@ namespace LoxInterpreter.Parsing
 			{
 				return new Expr.Literal(this.Previous().Literal);
 			}
+
+			if (this.Match(TokenType.SUPER))
+			{
+				var keyword = this.Previous();
+				this.Consume(TokenType.DOT, "Expect '.' after 'super'.");
+				var method = this.Consume(TokenType.IDENTIFIER, "Expect superclass method name.");
+				return new Expr.Super(keyword, method);
+			}
+
+			if (this.Match(TokenType.THIS)) return new Expr.This(this.Previous());
 
 			if (this.Match(TokenType.IDENTIFIER))
 			{

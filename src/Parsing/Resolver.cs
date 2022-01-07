@@ -12,12 +12,21 @@ namespace LoxInterpreter.Parsing
 		private readonly Interpreter interpreter;
 		private readonly Stack<Dictionary<string, bool>> scopes = new();
 		private FunctionType currentFunction = FunctionType.NONE;
+		private ClassType currentClass = ClassType.NONE;
 
 		private enum FunctionType
 		{
 			NONE,
 			FUNCTION,
+			INITIALIZER,
 			METHOD
+		}
+
+		private enum ClassType
+		{
+			NONE,
+			CLASS,
+			SUBCLASS
 		}
 
 		public Resolver(Interpreter interpreter)
@@ -58,8 +67,7 @@ namespace LoxInterpreter.Parsing
 
 		private void ResolveLocal(Expr expr, Token name)
 		{
-			// I think I want to go the opposite way on this loop
-			for (int i = 0; i < this.scopes.Count; i++)
+			for (int i = this.scopes.Count - 1; i >= 0; i--)
 			{
 				if (this.scopes.ElementAt(i).ContainsKey(name.Lexeme))
 				{
@@ -129,15 +137,42 @@ namespace LoxInterpreter.Parsing
 
 		public object VisitClassStmt(Stmt.Class stmt)
 		{
+			var enclosingClass = this.currentClass;
+			this.currentClass = ClassType.CLASS;
+
 			this.Declare(stmt.name);
 			this.Define(stmt.name);
+
+			if (stmt.superclass != null)
+			{
+				if (stmt.name.Lexeme.Equals(stmt.superclass.name.Lexeme))
+				{
+					Lox.Error(stmt.superclass.name, "A class can't inherit from itself.");
+				}
+				this.currentClass = ClassType.SUBCLASS;
+				this.Resolve(stmt.superclass);
+				this.BeginScope();
+				this.scopes.Peek().Add("super", true);
+			}
+
+			this.BeginScope();
+			this.scopes.Peek().Add("this", true);
 
 			foreach (var method in stmt.methods)
 			{
 				var declaration = FunctionType.METHOD;
+				if (method.name.Lexeme.Equals("init"))
+				{
+					declaration = FunctionType.INITIALIZER;
+				}
 				this.ResolveFunction(method, declaration);
 			}
 
+			this.EndScope();
+
+			if (stmt.superclass != null) this.EndScope();
+
+			this.currentClass = enclosingClass;
 			return null;
 		}
 
@@ -211,7 +246,14 @@ namespace LoxInterpreter.Parsing
 			{
 				Lox.Error(stmt.keyword, "Can't return from top-level code.");
 			}
-			if (stmt.value != null) this.Resolve(stmt.value);
+			if (stmt.value != null)
+			{
+				if (this.currentFunction == FunctionType.INITIALIZER)
+				{
+					Lox.Error(stmt.keyword, "Can't return a value from an initializer.");
+				}
+				this.Resolve(stmt.value);
+			}
 			return null;
 		}
 
@@ -219,6 +261,32 @@ namespace LoxInterpreter.Parsing
 		{
 			this.Resolve(expr.value);
 			this.Resolve(expr.obj);
+			return null;
+		}
+
+		public object VisitSuperExpr(Expr.Super expr)
+		{
+			if (this.currentClass == ClassType.NONE)
+			{
+				Lox.Error(expr.keyword, "Can't use 'super' outside of a class.");
+			}
+			else if (this.currentClass != ClassType.SUBCLASS)
+			{
+				Lox.Error(expr.keyword, "Can't use 'super' in a class with no superclass.");
+			}
+			this.ResolveLocal(expr, expr.keyword);
+			return null;
+		}
+
+		public object VisitThisExpr(Expr.This expr)
+		{
+			if (this.currentClass == ClassType.NONE)
+			{
+				Lox.Error(expr.keyword, "Can't use 'this' outside of a class.");
+				return null;
+			}
+
+			this.ResolveLocal(expr, expr.keyword);
 			return null;
 		}
 
