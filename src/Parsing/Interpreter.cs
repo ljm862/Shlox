@@ -71,6 +71,22 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitClassStmt(Stmt.Class stmt)
+		{
+			this.environment.Define(stmt.name.Lexeme, null);
+
+			var methods = new Dictionary<string, LoxFunction>();
+			foreach (var method in stmt.methods)
+			{
+				var function = new LoxFunction(method, this.environment);
+				methods.Add(method.name.Lexeme, function);
+			}
+
+			var loxClass = new LoxClass(stmt.name.Lexeme, methods);
+			this.environment.Assign(stmt.name, loxClass);
+			return null;
+		}
+
 		public object VisitBinaryExpr(Expr.Binary expr)
 		{
 			var left = this.Evaluate(expr.left);
@@ -144,6 +160,16 @@ namespace LoxInterpreter.Parsing
 			return function.Call(this, args);
 		}
 
+		public object VisitGetExpr(Expr.Get expr)
+		{
+			var obj = this.Evaluate(expr.obj);
+			if (obj is LoxInstance instance)
+			{
+				return instance.Get(expr.name);
+			}
+			throw new RuntimeError(expr.name, "Only instances have properties.");
+		}
+
 		public object VisitGroupingExpr(Expr.Grouping expr)
 		{
 			return this.Evaluate(expr.expression);
@@ -168,6 +194,21 @@ namespace LoxInterpreter.Parsing
 			}
 
 			return this.Evaluate(expr.right);
+		}
+
+		public object VisitSetExpr(Expr.Set expr)
+		{
+			var obj = this.Evaluate(expr.obj);
+
+			if (!(obj is LoxInstance))
+			{
+				throw new RuntimeError(expr.name, "Only instances have fields.");
+			}
+
+			var value = this.Evaluate(expr.value);
+			((LoxInstance)obj).Set(expr.name, value);
+			return value;
+
 		}
 
 		public object VisitUnaryExpr(Expr.Unary expr)

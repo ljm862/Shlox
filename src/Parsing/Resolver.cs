@@ -16,7 +16,8 @@ namespace LoxInterpreter.Parsing
 		private enum FunctionType
 		{
 			NONE,
-			FUNCTION
+			FUNCTION,
+			METHOD
 		}
 
 		public Resolver(Interpreter interpreter)
@@ -43,23 +44,26 @@ namespace LoxInterpreter.Parsing
 			{
 				Lox.Error(name, "Already a variable with this name in this scope.");
 			}
-
-			scope.Add(name.Lexeme, false);
+			else
+			{
+				scope.Add(name.Lexeme, false);
+			}
 		}
 
 		private void Define(Token name)
 		{
 			if (this.scopes.Count < 1) return;
-			this.scopes.Peek().Add(name.Lexeme, true);
+			this.scopes.Peek()[name.Lexeme] = true;
 		}
 
 		private void ResolveLocal(Expr expr, Token name)
 		{
-			for (int i = this.scopes.Count - 1; i >= 0; i--)
+			// I think I want to go the opposite way on this loop
+			for (int i = 0; i < this.scopes.Count; i++)
 			{
 				if (this.scopes.ElementAt(i).ContainsKey(name.Lexeme))
 				{
-					this.interpreter.Resolve(expr, this.scopes.Count() - 1 - i);
+					this.interpreter.Resolve(expr, i);
 					return;
 				}
 			}
@@ -123,6 +127,20 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitClassStmt(Stmt.Class stmt)
+		{
+			this.Declare(stmt.name);
+			this.Define(stmt.name);
+
+			foreach (var method in stmt.methods)
+			{
+				var declaration = FunctionType.METHOD;
+				this.ResolveFunction(method, declaration);
+			}
+
+			return null;
+		}
+
 		public object VisitCallExpr(Expr.Call expr)
 		{
 			this.Resolve(expr.callee);
@@ -145,6 +163,12 @@ namespace LoxInterpreter.Parsing
 			this.Define(stmt.name);
 
 			this.ResolveFunction(stmt, FunctionType.FUNCTION);
+			return null;
+		}
+
+		public object VisitGetExpr(Expr.Get expr)
+		{
+			this.Resolve(expr.obj);
 			return null;
 		}
 
@@ -191,6 +215,13 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitSetExpr(Expr.Set expr)
+		{
+			this.Resolve(expr.value);
+			this.Resolve(expr.obj);
+			return null;
+		}
+
 		public object VisitUnaryExpr(Expr.Unary expr)
 		{
 			this.Resolve(expr.right);
@@ -199,9 +230,12 @@ namespace LoxInterpreter.Parsing
 
 		public object VisitVariableExpr(Expr.Variable expr)
 		{
-			if (this.scopes.Count > 0 && this.scopes.Peek()[expr.name.Lexeme] == false)
+			if (this.scopes.Count > 0 && this.scopes.Peek().ContainsKey(expr.name.Lexeme))
 			{
-				Lox.Error(expr.name, "Can't read local variable in its own initializer.");
+				if (this.scopes.Peek()[expr.name.Lexeme] == false)
+				{
+					Lox.Error(expr.name, "Can't read local variable in its own initializer.");
+				}
 			}
 
 			this.ResolveLocal(expr, expr.name);

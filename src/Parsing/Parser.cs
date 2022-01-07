@@ -50,6 +50,10 @@ namespace LoxInterpreter.Parsing
 					var name = variable.name;
 					return new Expr.Assign(name, value);
 				}
+				else if (expr is Expr.Get get)
+				{
+					return new Expr.Set(get.obj, get.name, value);
+				}
 
 				this.Error(equals, "Invalid assignment target.");
 			}
@@ -87,6 +91,7 @@ namespace LoxInterpreter.Parsing
 		{
 			try
 			{
+				if (this.Match(TokenType.CLASS)) return this.ClassDeclaration();
 				if (this.Match(TokenType.FUN)) return this.Function("function");
 				if (this.Match(TokenType.VAR)) return this.VarDeclaration();
 				return this.Statement();
@@ -96,6 +101,21 @@ namespace LoxInterpreter.Parsing
 				this.Synchronise();
 				return null;
 			}
+		}
+
+		private Stmt ClassDeclaration()
+		{
+			var name = this.Consume(TokenType.IDENTIFIER, "Expect class name.");
+			this.Consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
+
+			var methods = new List<Stmt.Function>();
+			while (!this.Check(TokenType.RIGHT_BRACE) && !this.IsAtEnd())
+			{
+				methods.Add(this.Function("method"));
+			}
+
+			this.Consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
+			return new Stmt.Class(name, methods);
 		}
 
 		private Stmt Statement()
@@ -377,6 +397,11 @@ namespace LoxInterpreter.Parsing
 				if (this.Match(TokenType.LEFT_PAREN))
 				{
 					expr = this.FinishCall(expr);
+				}
+				else if (this.Match(TokenType.DOT))
+				{
+					var name = this.Consume(TokenType.IDENTIFIER, "Expect property name affter '.' .");
+					expr = new Expr.Get(expr, name);
 				}
 				else
 				{

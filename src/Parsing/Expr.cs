@@ -4,148 +4,152 @@ using LoxInterpreter.Lexing;
 
 namespace LoxInterpreter
 {
-	public abstract class Expr
-	{
-		public interface IVisitor<T>
-		{
-			T VisitAssignExpr(Assign expr);
-			T VisitBinaryExpr(Binary expr);
-			T VisitCallExpr(Call expr);
-			T VisitGroupingExpr(Grouping expr);
-			T VisitLiteralExpr(Literal expr);
-			T VisitLogicalExpr(Logical expr);
-			T VisitUnaryExpr(Unary expr);
-			T VisitVariableExpr(Variable expr);
-		}
-		public class Assign : Expr
-		{
-			public Assign(Token name, Expr value)
-			{
-				this.name = name;
-				this.value = value;
-			}
+public abstract class Expr {
+    public interface IVisitor<T> {
+    T VisitAssignExpr(Assign expr);
+    T VisitBinaryExpr(Binary expr);
+    T VisitCallExpr(Call expr);
+    T VisitGetExpr(Get expr);
+    T VisitGroupingExpr(Grouping expr);
+    T VisitLiteralExpr(Literal expr);
+    T VisitLogicalExpr(Logical expr);
+    T VisitSetExpr(Set expr);
+    T VisitUnaryExpr(Unary expr);
+    T VisitVariableExpr(Variable expr);
+    }
+ public class Assign : Expr {
+    public Assign(Token name, Expr value) {
+    this.name = name;
+    this.value = value;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitAssignExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitAssignExpr(this);
+    }
 
-			public readonly Token name;
-			public readonly Expr value;
-		}
-		public class Binary : Expr
-		{
-			public Binary(Expr left, Token oper, Expr right)
-			{
-				this.left = left;
-				this.oper = oper;
-				this.right = right;
-			}
+    public readonly Token name;
+    public readonly Expr value;
+    }
+ public class Binary : Expr {
+    public Binary(Expr left, Token oper, Expr right) {
+    this.left = left;
+    this.oper = oper;
+    this.right = right;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitBinaryExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitBinaryExpr(this);
+    }
 
-			public readonly Expr left;
-			public readonly Token oper;
-			public readonly Expr right;
-		}
-		public class Call : Expr
-		{
-			public Call(Expr callee, Token paren, List<Expr> arguments)
-			{
-				this.callee = callee;
-				this.paren = paren;
-				this.arguments = arguments;
-			}
+    public readonly Expr left;
+    public readonly Token oper;
+    public readonly Expr right;
+    }
+ public class Call : Expr {
+    public Call(Expr callee, Token paren, List<Expr> arguments) {
+    this.callee = callee;
+    this.paren = paren;
+    this.arguments = arguments;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitCallExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitCallExpr(this);
+    }
 
-			public readonly Expr callee;
-			public readonly Token paren;
-			public readonly List<Expr> arguments;
-		}
-		public class Grouping : Expr
-		{
-			public Grouping(Expr expression)
-			{
-				this.expression = expression;
-			}
+    public readonly Expr callee;
+    public readonly Token paren;
+    public readonly List<Expr> arguments;
+    }
+ public class Get : Expr {
+    public Get(Expr obj, Token name) {
+    this.obj = obj;
+    this.name = name;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitGroupingExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitGetExpr(this);
+    }
 
-			public readonly Expr expression;
-		}
-		public class Literal : Expr
-		{
-			public Literal(Object value)
-			{
-				this.value = value;
-			}
+    public readonly Expr obj;
+    public readonly Token name;
+    }
+ public class Grouping : Expr {
+    public Grouping(Expr expression) {
+    this.expression = expression;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitLiteralExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitGroupingExpr(this);
+    }
 
-			public readonly Object value;
-		}
-		public class Logical : Expr
-		{
-			public Logical(Expr left, Token oper, Expr right)
-			{
-				this.left = left;
-				this.oper = oper;
-				this.right = right;
-			}
+    public readonly Expr expression;
+    }
+ public class Literal : Expr {
+    public Literal(Object value) {
+    this.value = value;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitLogicalExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitLiteralExpr(this);
+    }
 
-			public readonly Expr left;
-			public readonly Token oper;
-			public readonly Expr right;
-		}
-		public class Unary : Expr
-		{
-			public Unary(Token oper, Expr right)
-			{
-				this.oper = oper;
-				this.right = right;
-			}
+    public readonly Object value;
+    }
+ public class Logical : Expr {
+    public Logical(Expr left, Token oper, Expr right) {
+    this.left = left;
+    this.oper = oper;
+    this.right = right;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitUnaryExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitLogicalExpr(this);
+    }
 
-			public readonly Token oper;
-			public readonly Expr right;
-		}
-		public class Variable : Expr
-		{
-			public Variable(Token name)
-			{
-				this.name = name;
-			}
+    public readonly Expr left;
+    public readonly Token oper;
+    public readonly Expr right;
+    }
+ public class Set : Expr {
+    public Set(Expr obj, Token name, Expr value) {
+    this.obj = obj;
+    this.name = name;
+    this.value = value;
+    }
 
-			public override T Accept<T>(IVisitor<T> visitor)
-			{
-				return visitor.VisitVariableExpr(this);
-			}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitSetExpr(this);
+    }
 
-			public readonly Token name;
-		}
+    public readonly Expr obj;
+    public readonly Token name;
+    public readonly Expr value;
+    }
+ public class Unary : Expr {
+    public Unary(Token oper, Expr right) {
+    this.oper = oper;
+    this.right = right;
+    }
 
-		public abstract T Accept<T>(IVisitor<T> visitor);
-	}
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitUnaryExpr(this);
+    }
+
+    public readonly Token oper;
+    public readonly Expr right;
+    }
+ public class Variable : Expr {
+    public Variable(Token name) {
+    this.name = name;
+    }
+
+    public override T Accept<T>(IVisitor<T> visitor) {
+        return visitor.VisitVariableExpr(this);
+    }
+
+    public readonly Token name;
+    }
+
+    public abstract T Accept<T>(IVisitor<T> visitor);
+}
 }
