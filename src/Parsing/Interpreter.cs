@@ -71,6 +71,44 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitClassStmt(Stmt.Class stmt)
+		{
+			object superclass = null;
+			if (stmt.superclass != null)
+			{
+				superclass = this.Evaluate(stmt.superclass);
+				if (superclass is not LoxClass)
+				{
+					throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+				}
+			}
+
+			this.environment.Define(stmt.name.Lexeme, null);
+
+			if (stmt.superclass != null)
+			{
+				this.environment = new Environment(this.environment);
+				this.environment.Define("super", superclass);
+			}
+
+			var methods = new Dictionary<string, LoxFunction>();
+			foreach (var method in stmt.methods)
+			{
+				var function = new LoxFunction(method, this.environment, method.name.Lexeme.Equals("init"));
+				methods.Add(method.name.Lexeme, function);
+			}
+
+			var loxClass = new LoxClass(stmt.name.Lexeme, (LoxClass)superclass, methods);
+
+			if (superclass != null)
+			{
+				this.environment = this.environment.Enclosing;
+			}
+
+			this.environment.Assign(stmt.name, loxClass);
+			return null;
+		}
+
 		public object VisitBinaryExpr(Expr.Binary expr)
 		{
 			var left = this.Evaluate(expr.left);
@@ -144,6 +182,16 @@ namespace LoxInterpreter.Parsing
 			return function.Call(this, args);
 		}
 
+		public object VisitGetExpr(Expr.Get expr)
+		{
+			var obj = this.Evaluate(expr.obj);
+			if (obj is LoxInstance instance)
+			{
+				return instance.Get(expr.name);
+			}
+			throw new RuntimeError(expr.name, "Only instances have properties.");
+		}
+
 		public object VisitGroupingExpr(Expr.Grouping expr)
 		{
 			return this.Evaluate(expr.expression);
@@ -168,6 +216,42 @@ namespace LoxInterpreter.Parsing
 			}
 
 			return this.Evaluate(expr.right);
+		}
+
+		public object VisitSetExpr(Expr.Set expr)
+		{
+			var obj = this.Evaluate(expr.obj);
+
+			if (!(obj is LoxInstance))
+			{
+				throw new RuntimeError(expr.name, "Only instances have fields.");
+			}
+
+			var value = this.Evaluate(expr.value);
+			((LoxInstance)obj).Set(expr.name, value);
+			return value;
+		}
+
+		public object VisitSuperExpr(Expr.Super expr)
+		{
+			var distance = this.locals[expr];
+			var superclass = (LoxClass)this.environment.GetAt(distance, "super");
+
+			var instance = (LoxInstance)this.environment.GetAt(distance - 1, "this");
+
+			var method = superclass.FindMethod(expr.method.Lexeme);
+
+			if (method == null)
+			{
+				throw new RuntimeError(expr.method, $"Undefined property '{expr.method.Lexeme}'.");
+			}
+
+			return method.Bind(instance);
+		}
+
+		public object VisitThisExpr(Expr.This expr)
+		{
+			return this.LookUpVariable(expr.keyword, expr);
 		}
 
 		public object VisitUnaryExpr(Expr.Unary expr)
@@ -206,7 +290,7 @@ namespace LoxInterpreter.Parsing
 
 		public object VisitFunctionStmt(Stmt.Function stmt)
 		{
-			var function = new LoxFunction(stmt, this.environment);
+			var function = new LoxFunction(stmt, this.environment, false);
 			this.environment.Define(stmt.name.Lexeme, function);
 			return null;
 		}

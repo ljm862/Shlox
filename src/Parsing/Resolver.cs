@@ -12,11 +12,21 @@ namespace LoxInterpreter.Parsing
 		private readonly Interpreter interpreter;
 		private readonly Stack<Dictionary<string, bool>> scopes = new();
 		private FunctionType currentFunction = FunctionType.NONE;
+		private ClassType currentClass = ClassType.NONE;
 
 		private enum FunctionType
 		{
 			NONE,
-			FUNCTION
+			FUNCTION,
+			INITIALIZER,
+			METHOD
+		}
+
+		private enum ClassType
+		{
+			NONE,
+			CLASS,
+			SUBCLASS
 		}
 
 		public Resolver(Interpreter interpreter)
@@ -43,14 +53,16 @@ namespace LoxInterpreter.Parsing
 			{
 				Lox.Error(name, "Already a variable with this name in this scope.");
 			}
-
-			scope.Add(name.Lexeme, false);
+			else
+			{
+				scope.Add(name.Lexeme, false);
+			}
 		}
 
 		private void Define(Token name)
 		{
 			if (this.scopes.Count < 1) return;
-			this.scopes.Peek().Add(name.Lexeme, true);
+			this.scopes.Peek()[name.Lexeme] = true;
 		}
 
 		private void ResolveLocal(Expr expr, Token name)
@@ -59,7 +71,7 @@ namespace LoxInterpreter.Parsing
 			{
 				if (this.scopes.ElementAt(i).ContainsKey(name.Lexeme))
 				{
-					this.interpreter.Resolve(expr, this.scopes.Count() - 1 - i);
+					this.interpreter.Resolve(expr, i);
 					return;
 				}
 			}
@@ -123,6 +135,47 @@ namespace LoxInterpreter.Parsing
 			return null;
 		}
 
+		public object VisitClassStmt(Stmt.Class stmt)
+		{
+			var enclosingClass = this.currentClass;
+			this.currentClass = ClassType.CLASS;
+
+			this.Declare(stmt.name);
+			this.Define(stmt.name);
+
+			if (stmt.superclass != null)
+			{
+				if (stmt.name.Lexeme.Equals(stmt.superclass.name.Lexeme))
+				{
+					Lox.Error(stmt.superclass.name, "A class can't inherit from itself.");
+				}
+				this.currentClass = ClassType.SUBCLASS;
+				this.Resolve(stmt.superclass);
+				this.BeginScope();
+				this.scopes.Peek().Add("super", true);
+			}
+
+			this.BeginScope();
+			this.scopes.Peek().Add("this", true);
+
+			foreach (var method in stmt.methods)
+			{
+				var declaration = FunctionType.METHOD;
+				if (method.name.Lexeme.Equals("init"))
+				{
+					declaration = FunctionType.INITIALIZER;
+				}
+				this.ResolveFunction(method, declaration);
+			}
+
+			this.EndScope();
+
+			if (stmt.superclass != null) this.EndScope();
+
+			this.currentClass = enclosingClass;
+			return null;
+		}
+
 		public object VisitCallExpr(Expr.Call expr)
 		{
 			this.Resolve(expr.callee);
@@ -145,6 +198,12 @@ namespace LoxInterpreter.Parsing
 			this.Define(stmt.name);
 
 			this.ResolveFunction(stmt, FunctionType.FUNCTION);
+			return null;
+		}
+
+		public object VisitGetExpr(Expr.Get expr)
+		{
+			this.Resolve(expr.obj);
 			return null;
 		}
 
@@ -187,7 +246,47 @@ namespace LoxInterpreter.Parsing
 			{
 				Lox.Error(stmt.keyword, "Can't return from top-level code.");
 			}
-			if (stmt.value != null) this.Resolve(stmt.value);
+			if (stmt.value != null)
+			{
+				if (this.currentFunction == FunctionType.INITIALIZER)
+				{
+					Lox.Error(stmt.keyword, "Can't return a value from an initializer.");
+				}
+				this.Resolve(stmt.value);
+			}
+			return null;
+		}
+
+		public object VisitSetExpr(Expr.Set expr)
+		{
+			this.Resolve(expr.value);
+			this.Resolve(expr.obj);
+			return null;
+		}
+
+		public object VisitSuperExpr(Expr.Super expr)
+		{
+			if (this.currentClass == ClassType.NONE)
+			{
+				Lox.Error(expr.keyword, "Can't use 'super' outside of a class.");
+			}
+			else if (this.currentClass != ClassType.SUBCLASS)
+			{
+				Lox.Error(expr.keyword, "Can't use 'super' in a class with no superclass.");
+			}
+			this.ResolveLocal(expr, expr.keyword);
+			return null;
+		}
+
+		public object VisitThisExpr(Expr.This expr)
+		{
+			if (this.currentClass == ClassType.NONE)
+			{
+				Lox.Error(expr.keyword, "Can't use 'this' outside of a class.");
+				return null;
+			}
+
+			this.ResolveLocal(expr, expr.keyword);
 			return null;
 		}
 
@@ -199,9 +298,12 @@ namespace LoxInterpreter.Parsing
 
 		public object VisitVariableExpr(Expr.Variable expr)
 		{
-			if (this.scopes.Count > 0 && this.scopes.Peek()[expr.name.Lexeme] == false)
+			if (this.scopes.Count > 0 && this.scopes.Peek().ContainsKey(expr.name.Lexeme))
 			{
-				Lox.Error(expr.name, "Can't read local variable in its own initializer.");
+				if (this.scopes.Peek()[expr.name.Lexeme] == false)
+				{
+					Lox.Error(expr.name, "Can't read local variable in its own initializer.");
+				}
 			}
 
 			this.ResolveLocal(expr, expr.name);

@@ -9,6 +9,7 @@ namespace LoxInterpreter
 		public interface IVisitor<T>
 		{
 			T VisitBlockStmt(Block stmt);
+			T VisitClassStmt(Class stmt);
 			T VisitExpressionStmt(Expression stmt);
 			T VisitFunctionStmt(Function stmt);
 			T VisitIfStmt(If stmt);
@@ -30,6 +31,24 @@ namespace LoxInterpreter
 			}
 
 			public readonly List<Stmt> statements;
+		}
+		public class Class : Stmt
+		{
+			public Class(Token name, Expr.Variable superclass, List<Stmt.Function> methods)
+			{
+				this.name = name;
+				this.superclass = superclass;
+				this.methods = methods;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitClassStmt(this);
+			}
+
+			public readonly Token name;
+			public readonly Expr.Variable superclass;
+			public readonly List<Stmt.Function> methods;
 		}
 		public class Expression : Stmt
 		{

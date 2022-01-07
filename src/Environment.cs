@@ -37,7 +37,7 @@ namespace LoxInterpreter
 
 		public object GetAt(int distance, string name)
 		{
-			return this.Ancestor(distance).values.Get(name);
+			return this.Ancestor(distance).values[name];
 		}
 
 		public void Assign(Token name, object value)
@@ -59,7 +59,7 @@ namespace LoxInterpreter
 
 		public void AssignAt(int distance, Token name, object value)
 		{
-			this.Ancestor(distance).values.Add(name.Lexeme, value);
+			this.Ancestor(distance).values[name.Lexeme] = value;
 		}
 
 		public void Define(string name, object value)

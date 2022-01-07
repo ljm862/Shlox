@@ -11,9 +11,13 @@ namespace LoxInterpreter
 			T VisitAssignExpr(Assign expr);
 			T VisitBinaryExpr(Binary expr);
 			T VisitCallExpr(Call expr);
+			T VisitGetExpr(Get expr);
 			T VisitGroupingExpr(Grouping expr);
 			T VisitLiteralExpr(Literal expr);
 			T VisitLogicalExpr(Logical expr);
+			T VisitSetExpr(Set expr);
+			T VisitSuperExpr(Super expr);
+			T VisitThisExpr(This expr);
 			T VisitUnaryExpr(Unary expr);
 			T VisitVariableExpr(Variable expr);
 		}
@@ -69,6 +73,22 @@ namespace LoxInterpreter
 			public readonly Token paren;
 			public readonly List<Expr> arguments;
 		}
+		public class Get : Expr
+		{
+			public Get(Expr obj, Token name)
+			{
+				this.obj = obj;
+				this.name = name;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitGetExpr(this);
+			}
+
+			public readonly Expr obj;
+			public readonly Token name;
+		}
 		public class Grouping : Expr
 		{
 			public Grouping(Expr expression)
@@ -114,6 +134,54 @@ namespace LoxInterpreter
 			public readonly Expr left;
 			public readonly Token oper;
 			public readonly Expr right;
+		}
+		public class Set : Expr
+		{
+			public Set(Expr obj, Token name, Expr value)
+			{
+				this.obj = obj;
+				this.name = name;
+				this.value = value;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitSetExpr(this);
+			}
+
+			public readonly Expr obj;
+			public readonly Token name;
+			public readonly Expr value;
+		}
+		public class Super : Expr
+		{
+			public Super(Token keyword, Token method)
+			{
+				this.keyword = keyword;
+				this.method = method;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitSuperExpr(this);
+			}
+
+			public readonly Token keyword;
+			public readonly Token method;
+		}
+		public class This : Expr
+		{
+			public This(Token keyword)
+			{
+				this.keyword = keyword;
+			}
+
+			public override T Accept<T>(IVisitor<T> visitor)
+			{
+				return visitor.VisitThisExpr(this);
+			}
+
+			public readonly Token keyword;
 		}
 		public class Unary : Expr
 		{
